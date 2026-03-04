@@ -53,7 +53,7 @@ export function registerNodeCli(program: Command) {
       await runNodeHost({
         gatewayHost: host,
         gatewayPort: port,
-        gatewayTls: Boolean(opts.tls) || Boolean(opts.tlsFingerprint),
+        gatewayTls: opts.tls || Boolean(opts.tlsFingerprint) || existing?.gateway?.tls,
         gatewayTlsFingerprint: opts.tlsFingerprint,
         nodeId: opts.nodeId,
         displayName: opts.displayName,
