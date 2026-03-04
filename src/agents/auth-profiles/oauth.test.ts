@@ -394,3 +394,56 @@ describe("resolveApiKeyForProfile secret refs", () => {
     }
   });
 });
+
+describe("resolveApiKeyForProfile with legacy apiKey field (#34654)", () => {
+  it("resolves api_key credentials using apiKey field", async () => {
+    const profileId = "google:default";
+    const store: AuthProfileStore = {
+      version: 1,
+      profiles: {
+        [profileId]: {
+          type: "api_key",
+          provider: "google",
+          apiKey: "AIzaSy...",
+        } as AuthProfileStore["profiles"][string],
+      },
+    };
+
+    const result = await resolveApiKeyForProfile({
+      store,
+      profileId,
+    });
+
+    expect(result).toEqual({
+      apiKey: "AIzaSy...",
+      provider: "google",
+      email: undefined,
+    });
+  });
+
+  it("prefers canonical key field over apiKey alias", async () => {
+    const profileId = "anthropic:default";
+    const store: AuthProfileStore = {
+      version: 1,
+      profiles: {
+        [profileId]: {
+          type: "api_key",
+          provider: "anthropic",
+          key: "sk-ant-canonical",
+          apiKey: "sk-ant-alias",
+        } as AuthProfileStore["profiles"][string],
+      },
+    };
+
+    const result = await resolveApiKeyForProfile({
+      store,
+      profileId,
+    });
+
+    expect(result).toEqual({
+      apiKey: "sk-ant-canonical",
+      provider: "anthropic",
+      email: undefined,
+    });
+  });
+});

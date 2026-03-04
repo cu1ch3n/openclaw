@@ -39,7 +39,11 @@ export function evaluateStoredCredentialEligibility(params: {
   const credential = params.credential;
 
   if (credential.type === "api_key") {
-    const hasKey = hasConfiguredSecretString(credential.key);
+    // Support both 'key' (canonical) and 'apiKey' (legacy/alias) field names
+    const legacyApiKey = (credential as Record<string, unknown>).apiKey;
+    const keyValue =
+      credential.key ?? (typeof legacyApiKey === "string" ? legacyApiKey : undefined);
+    const hasKey = hasConfiguredSecretString(keyValue);
     const hasKeyRef = hasConfiguredSecretRef(credential.keyRef);
     if (!hasKey && !hasKeyRef) {
       return { eligible: false, reasonCode: "missing_credential" };

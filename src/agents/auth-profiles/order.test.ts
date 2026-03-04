@@ -22,4 +22,36 @@ describe("resolveAuthProfileOrder", () => {
 
     expect(order).toEqual(["volcengine:default"]);
   });
+
+  it("resolves api_key profiles using both apiKey and key fields (#34654)", () => {
+    const store: AuthProfileStore = {
+      version: 1,
+      profiles: {
+        "google:default": {
+          type: "api_key",
+          provider: "google",
+          apiKey: "AIzaSy...",
+        } as AuthProfileStore["profiles"][string],
+        "anthropic:default": {
+          type: "api_key",
+          provider: "anthropic",
+          key: "sk-ant-...",
+        },
+      },
+    };
+
+    const order = resolveAuthProfileOrder({
+      store,
+      provider: "google",
+    });
+
+    expect(order).toEqual(["google:default"]);
+
+    const anthropicOrder = resolveAuthProfileOrder({
+      store,
+      provider: "anthropic",
+    });
+
+    expect(anthropicOrder).toEqual(["anthropic:default"]);
+  });
 });

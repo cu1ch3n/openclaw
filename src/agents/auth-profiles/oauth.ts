@@ -310,10 +310,13 @@ export async function resolveApiKeyForProfile(
   const refDefaults = configForRefResolution.secrets?.defaults;
 
   if (cred.type === "api_key") {
+    // Support both 'key' (canonical) and 'apiKey' (legacy/alias) field names
+    const legacyApiKey = (cred as Record<string, unknown>).apiKey;
+    const keyValue = cred.key ?? (typeof legacyApiKey === "string" ? legacyApiKey : undefined);
     const key = await resolveProfileSecretString({
       profileId,
       provider: cred.provider,
-      value: cred.key,
+      value: keyValue,
       valueRef: cred.keyRef,
       refDefaults,
       configForRefResolution,
