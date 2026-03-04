@@ -185,6 +185,7 @@ interface OllamaChatResponse {
   message: {
     role: "assistant";
     content: string;
+    thinking?: string;
     reasoning?: string;
     tool_calls?: OllamaToolCall[];
   };
@@ -323,10 +324,10 @@ export function buildAssistantMessage(
 ): AssistantMessage {
   const content: (TextContent | ToolCall)[] = [];
 
-  // Qwen 3 (and potentially other reasoning models) may return their final
-  // answer in a `reasoning` field with an empty `content`. Fall back to
-  // `reasoning` so the response isn't silently dropped.
-  const text = response.message.content || response.message.reasoning || "";
+  // Ollama API uses `thinking` for reasoning/thinking models (kimi-k2.5, glm-5, etc.).
+  // Some models may also use `reasoning`. Check both fields so responses aren't silently dropped.
+  const text =
+    response.message.content || response.message.thinking || response.message.reasoning || "";
   if (text) {
     content.push({ type: "text", text });
   }
@@ -470,8 +471,11 @@ export function createOllamaStreamFn(baseUrl: string): StreamFn {
         for await (const chunk of parseNdjsonStream(reader)) {
           if (chunk.message?.content) {
             accumulatedContent += chunk.message.content;
+          } else if (chunk.message?.thinking) {
+            // Ollama API uses `thinking` for reasoning/thinking models
+            accumulatedContent += chunk.message.thinking;
           } else if (chunk.message?.reasoning) {
-            // Qwen 3 reasoning mode: content may be empty, output in reasoning
+            // Fall back to `reasoning` for backward compatibility
             accumulatedContent += chunk.message.reasoning;
           }
 
