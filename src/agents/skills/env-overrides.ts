@@ -9,6 +9,16 @@ import type { SkillEntry, SkillSnapshot } from "./types.js";
 
 const log = createSubsystemLogger("env-overrides");
 
+// Track env keys that were injected by skill overrides so ACP harnesses
+// (and other child-process spawn points) can strip them before spawning.
+// Keys are added when overrides are applied and removed when reverted.
+const activeSkillEnvKeys = new Set<string>();
+
+/** Returns the set of env var keys currently injected by skill overrides. */
+export function getActiveSkillEnvKeys(): ReadonlySet<string> {
+  return activeSkillEnvKeys;
+}
+
 type EnvUpdate = { key: string; prev: string | undefined };
 type SkillConfig = NonNullable<ReturnType<typeof resolveSkillConfig>>;
 
@@ -135,6 +145,7 @@ function applySkillConfigEnvOverrides(params: {
     }
     updates.push({ key: envKey, prev: process.env[envKey] });
     process.env[envKey] = envValue;
+    activeSkillEnvKeys.add(envKey);
   }
 }
 
@@ -146,6 +157,7 @@ function createEnvReverter(updates: EnvUpdate[]) {
       } else {
         process.env[update.key] = update.prev;
       }
+      activeSkillEnvKeys.delete(update.key);
     }
   };
 }

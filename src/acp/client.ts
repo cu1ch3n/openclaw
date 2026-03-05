@@ -14,6 +14,7 @@ import {
   type SessionNotification,
 } from "@agentclientprotocol/sdk";
 import { isKnownCoreToolId } from "../agents/tool-catalog.js";
+import { getActiveSkillEnvKeys } from "../agents/skills/env-overrides.js";
 import { ensureOpenClawCliOnPath } from "../infra/path-env.js";
 import {
   materializeWindowsSpawnProgram,
@@ -349,7 +350,16 @@ function buildServerArgs(opts: AcpClientOptions): string[] {
 export function resolveAcpClientSpawnEnv(
   baseEnv: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
-  return { ...baseEnv, OPENCLAW_SHELL: "acp-client" };
+  // Strip env vars injected by skill overrides so ACP harnesses (e.g. Codex CLI)
+  // inherit a clean environment and use their own auth instead of leaked skill keys.
+  const skillKeys = getActiveSkillEnvKeys();
+  const cleaned: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(baseEnv)) {
+    if (!skillKeys.has(key)) {
+      cleaned[key] = value;
+    }
+  }
+  return { ...cleaned, OPENCLAW_SHELL: "acp-client" };
 }
 
 type AcpSpawnRuntime = {

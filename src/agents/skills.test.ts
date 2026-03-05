@@ -12,6 +12,7 @@ import {
   buildWorkspaceSkillSnapshot,
   loadWorkspaceSkillEntries,
 } from "./skills.js";
+import { getActiveSkillEnvKeys } from "./skills/env-overrides.js";
 
 const fixtureSuite = createFixtureSuite("openclaw-skills-suite-");
 let tempHome: TempHomeEnv | null = null;
@@ -259,6 +260,33 @@ describe("applySkillEnvOverrides", () => {
       } finally {
         restore();
         expect(process.env.ENV_KEY).toBeUndefined();
+      }
+    });
+  });
+
+  it("tracks active skill env keys and clears them on revert", async () => {
+    const workspaceDir = await makeWorkspace();
+    const skillDir = path.join(workspaceDir, "skills", "tracked-skill");
+    await writeSkill({
+      dir: skillDir,
+      name: "tracked-skill",
+      description: "Tracked env",
+      metadata: '{"openclaw":{"requires":{"env":["TRACKED_KEY"]},"primaryEnv":"TRACKED_KEY"}}',
+    });
+
+    const entries = loadWorkspaceSkillEntries(workspaceDir, resolveTestSkillDirs(workspaceDir));
+
+    withClearedEnv(["TRACKED_KEY"], () => {
+      const restore = applySkillEnvOverrides({
+        skills: entries,
+        config: { skills: { entries: { "tracked-skill": { apiKey: "tracked-val" } } } },
+      });
+
+      try {
+        expect(getActiveSkillEnvKeys().has("TRACKED_KEY")).toBe(true);
+      } finally {
+        restore();
+        expect(getActiveSkillEnvKeys().has("TRACKED_KEY")).toBe(false);
       }
     });
   });

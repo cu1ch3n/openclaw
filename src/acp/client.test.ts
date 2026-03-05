@@ -10,6 +10,17 @@ import {
 } from "./client.js";
 import { extractAttachmentsFromPrompt, extractTextFromPrompt } from "./event-mapper.js";
 
+vi.mock("../agents/skills/env-overrides.js", () => {
+  const keys = new Set<string>();
+  return {
+    getActiveSkillEnvKeys: () => keys,
+    __setActiveSkillEnvKeysForTest: (newKeys: string[]) => {
+      keys.clear();
+      for (const k of newKeys) keys.add(k);
+    },
+  };
+});
+
 function makePermissionRequest(
   overrides: Partial<RequestPermissionRequest> = {},
 ): RequestPermissionRequest {
@@ -59,6 +70,30 @@ describe("resolveAcpClientSpawnEnv", () => {
       OPENCLAW_SHELL: "wrong",
     });
     expect(env.OPENCLAW_SHELL).toBe("acp-client");
+  });
+
+  it("strips env vars injected by active skill overrides", async () => {
+    const mod = await import("../agents/skills/env-overrides.js");
+    const setKeys = (mod as Record<string, unknown>).__setActiveSkillEnvKeysForTest as (
+      keys: string[],
+    ) => void;
+    setKeys(["OPENAI_API_KEY", "CUSTOM_SKILL_TOKEN"]);
+
+    const env = resolveAcpClientSpawnEnv({
+      PATH: "/usr/bin",
+      OPENAI_API_KEY: "sk-proj-leaked",
+      CUSTOM_SKILL_TOKEN: "secret",
+      HOME: "/home/user",
+    });
+
+    expect(env.PATH).toBe("/usr/bin");
+    expect(env.HOME).toBe("/home/user");
+    expect(env.OPENCLAW_SHELL).toBe("acp-client");
+    expect(env.OPENAI_API_KEY).toBeUndefined();
+    expect(env.CUSTOM_SKILL_TOKEN).toBeUndefined();
+
+    // Clean up
+    setKeys([]);
   });
 });
 
