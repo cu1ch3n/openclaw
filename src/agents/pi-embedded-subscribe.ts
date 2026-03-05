@@ -172,6 +172,9 @@ export function subscribeEmbeddedPiSession(params: SubscribeEmbeddedPiSessionPar
     // the final text even when interim streaming was enabled.
     if (state.includeReasoning && text && !params.onBlockReply) {
       if (assistantTexts.length > state.assistantTextBaseline) {
+        // Consolidate streaming chunks from this message into a single final text.
+        // IMPORTANT: Only replace chunks from the CURRENT message (from assistantTextBaseline onwards),
+        // preserving any text from previous assistant message segments (before tool calls).
         assistantTexts.splice(
           state.assistantTextBaseline,
           assistantTexts.length - state.assistantTextBaseline,
@@ -179,6 +182,7 @@ export function subscribeEmbeddedPiSession(params: SubscribeEmbeddedPiSessionPar
         );
         rememberAssistantText(text);
       } else {
+        // No chunks were added during streaming, so append the final text.
         pushAssistantText(text);
       }
       state.suppressBlockChunks = true;
